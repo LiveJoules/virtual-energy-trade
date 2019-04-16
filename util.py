@@ -1,6 +1,9 @@
 # coding: utf-8
 import csv
 import os
+from tempfile import NamedTemporaryFile
+import shutil
+
 
 
 def curtailment(data):
@@ -55,7 +58,7 @@ def pricing(unitPrice, purchaseSale):
 def getMin(arr): 
       
     minInd = 0
-    for i in range(0, len(arr) - 1): 
+    for i in range(0, len(arr)): 
         if (arr[i][2] < arr[minInd][2]): 
             minInd = i 
     return minInd 
@@ -63,7 +66,7 @@ def getMin(arr):
 def getMax(arr): 
   
     maxInd = 0
-    for i in range(0, len(arr) - 1): 
+    for i in range(0, len(arr)): 
         if (arr[i][2] > arr[maxInd][2]): 
             maxInd = i 
     return maxInd
@@ -78,8 +81,9 @@ def minOf2(x, y):
 # person will amount[i] 
 # If amount[p] is negative, then i'th 
 # person will give -amount[i] 
-def minCashFlowRec(amount): 
-  
+def minCashFlowRec(amount, initialAccounts):
+    
+
     # Find the indexes of minimum 
     # and maximum values in amount[] 
     # amount[mxCredit] indicates the maximum 
@@ -89,33 +93,77 @@ def minCashFlowRec(amount):
     # So if there is a positive value in amount[],  
     # then there must be a negative value 
     mxCredit = getMax(amount) 
-    mxDebit = getMin(amount) 
-  
+    mxDebit = getMin(amount)
     # If both amounts are 0,  
     # then all amounts are settled 
-    if (amount[mxCredit][2] == 0 and amount[mxDebit] == 0): 
-        return 0
+    # print(mxCredit, mxDebit, amount[mxCredit][2], amount[mxDebit][2])
+    if (amount[mxCredit][2] <= 0.000001 and amount[mxDebit][2] <= 0.000001): 
+        return initialAccounts
   
     # Find the minimum of two amounts 
     min = minOf2(-amount[mxDebit][2], amount[mxCredit][2]) 
+    # print(min)
     amount[mxCredit][2] -=min
     amount[mxDebit][2] += min
-  
     # If minimum is the maximum amount to be 
-  
+
+    print('Account ', amount[mxDebit][0], ' pays ', min, ' to Account ', amount[mxCredit][0])
+    for user in initialAccounts:
+        if amount[mxDebit][0] == user[0]:
+            user[2] += min
+        
+        if amount[mxCredit][0] == user[0]:
+            user[2] -= min
+    
     # Recur for the amount array. Note that 
     # it is guaranteed that the recursion 
     # would terminate as either amount[mxCredit]  
-    # or amount[mxDebit] becomes 0 
-    minCashFlowRec(amount) 
+    # or amount[mxDebit] becomes 0
+    return minCashFlowRec(amount, initialAccounts) 
 
-  
+def updateConsumption(accounts, pricingData):
+    for user in pricingData:
+        if user[1] > 0:
+            accounts[int(user[0])][1] += user[1]
+    return accounts
+      
+
+
+    
+        
 
 
 
 cAmount = curtailment('test.csv')
+print(cAmount)
 pricingData = pricing(100, cAmount)
+# print(pricingData)
+ifile = open('accounts.csv')
+reader = csv.reader(ifile)
+accounts = list(reader)
+for user in accounts:
+    user[1] = float(user[1])
+    user[2] = float(user[2])
+# tempfile = NamedTemporaryFile(delete=False)
+
+    
+updatedAccountBalance = minCashFlowRec(pricingData, accounts)
+updatedAccounts = updateConsumption(updatedAccountBalance, pricingData)
+
+filename = 'accounts.csv'
+tempfile = NamedTemporaryFile(delete=False)
+
+with open(filename, 'rb') as csvFile, tempfile:
+    reader = csv.reader(csvFile, delimiter=',', quotechar='"')
+    writer = csv.writer(tempfile, delimiter=',', quotechar='"')
+
+    for row in reader:
+        row = accounts[int(row[0])]
+        writer.writerow(row)
+
+shutil.move(tempfile.name, filename)
+
+# shutil.move(tempfile.name, 'accounts.csv')
 print(pricingData)
-minCashFlowRec(pricingData)
-print(pricingData)
+print(updatedAccounts)
 
